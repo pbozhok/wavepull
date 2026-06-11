@@ -7,12 +7,50 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+
+  <!-- T004: Wave background — three layers at different depths and speeds -->
+  <div class="wave-bg" aria-hidden="true">
+    <!-- Layer C: uppermost, fastest, most subtle -->
+    <div class="wave-layer wave-layer--c">
+      <svg viewBox="0 0 2880 900" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,560 C480,440 960,680 1440,560 C1920,440 2400,680 2880,560 L2880,900 L0,900 Z"
+              fill="rgba(0,100,130,0.04)"/>
+      </svg>
+    </div>
+    <!-- Layer B: mid depth, slowest -->
+    <div class="wave-layer wave-layer--b">
+      <svg viewBox="0 0 2880 900" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,680 C480,560 960,800 1440,680 C1920,560 2400,800 2880,680 L2880,900 L0,900 Z"
+              fill="rgba(0,151,167,0.055)"/>
+      </svg>
+    </div>
+    <!-- Layer A: front, normal speed, most visible -->
+    <div class="wave-layer wave-layer--a">
+      <svg viewBox="0 0 2880 900" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,750 C320,630 1120,870 1440,750 C1760,630 2560,870 2880,750 L2880,900 L0,900 Z"
+              fill="rgba(0,229,255,0.08)"/>
+      </svg>
+    </div>
+  </div>
+
   <header>
     <div class="logo">
       <span class="logo-wave">WAVE</span><span class="logo-pull">PULL</span>
     </div>
     <p class="tagline">PULL MUSIC FROM THE SOURCE</p>
   </header>
+
+  <!-- T017: Wave divider — two stroke-path waves between header and content -->
+  <div class="wave-divider" aria-hidden="true">
+    <svg viewBox="0 0 1440 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0,24 C240,6 480,34 720,24 C960,6 1200,34 1440,24"
+            stroke="rgba(0,229,255,0.22)" stroke-width="1.5" fill="none"
+            stroke-linecap="round"/>
+      <path d="M0,30 C360,16 720,36 1080,28 C1260,22 1380,30 1440,30"
+            stroke="rgba(0,229,255,0.09)" stroke-width="1" fill="none"
+            stroke-linecap="round"/>
+    </svg>
+  </div>
 
   <main>
     <form id="search-form" autocomplete="off" novalidate>
@@ -26,7 +64,12 @@
         >
         <button type="submit" id="search-btn" aria-label="Search">
           <span class="btn-text">SEARCH</span>
-          <span class="btn-loading" hidden aria-hidden="true">…</span>
+          <!-- T008: wave-bar loading indicator replaces plain "…" -->
+          <span class="btn-loading" hidden aria-hidden="true">
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+          </span>
         </button>
       </div>
       <p class="search-error" id="search-error" role="alert" hidden></p>

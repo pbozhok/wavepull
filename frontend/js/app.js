@@ -26,7 +26,7 @@ form.addEventListener('submit', async (e) => {
 
   clearError();
   setLoading(true);
-  resetResults();
+  await resetResults();
 
   try {
     const resp = await fetch('/api/search', {
@@ -65,13 +65,16 @@ function renderResults(data) {
 
   const count = data.results.length;
   resultsCount.textContent = `${count} result${count !== 1 ? 's' : ''}`;
-  data.results.forEach(r => resultsList.appendChild(buildCard(r)));
+  // T012 — pass stagger index; cap at 9 so last card's delay stays ≤ 540ms
+  data.results.forEach((r, i) => resultsList.appendChild(buildCard(r, i)));
   resultsSec.hidden = false;
 }
 
-function buildCard(result) {
+// T012 — accept index, set --i CSS custom property for stagger animation
+function buildCard(result, index) {
   const li = document.createElement('li');
   li.className = 'result-card';
+  li.style.setProperty('--i', Math.min(index, 9));
 
   const thumb = result.thumbnail_url
     ? `<img class="result-thumb" src="${esc(result.thumbnail_url)}" alt="" loading="lazy">`
@@ -128,9 +131,18 @@ function buildCard(result) {
 // ── Download ──────────────────────────────────────────
 
 function triggerDownload(url, btn) {
+  const card = btn.closest('.result-card');
   const orig = btn.textContent;
   btn.disabled = true;
   btn.textContent = '…';
+
+  // T015 — ripple feedback on the card; remove after animation ends
+  if (card) {
+    card.classList.add('downloading');
+    card.addEventListener('animationend', () => {
+      card.classList.remove('downloading');
+    }, { once: true });
+  }
 
   const a = document.createElement('a');
   a.href = `/api/download?url=${encodeURIComponent(url)}`;
@@ -163,7 +175,14 @@ function clearError() {
   errorEl.hidden = true;
 }
 
-function resetResults() {
+// T011 — fade out existing results before clearing; resolves immediately if
+// there are no results to animate out
+async function resetResults() {
+  if (!resultsSec.hidden && resultsList.children.length > 0) {
+    resultsList.classList.add('results-exiting');
+    await new Promise(r => setTimeout(r, 175));
+    resultsList.classList.remove('results-exiting');
+  }
   resultsSec.hidden = true;
   noResults.hidden = true;
   srcErrSec.hidden = true;

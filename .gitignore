@@ -24,6 +24,10 @@ htmlcov/
 .env
 .env.*
 
-# OS
+# OS / editor
 .DS_Store
 Thumbs.db
+*.tmp
+*.swp
+.vscode/
+.idea/
