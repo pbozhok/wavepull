@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wavepull</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <span class="logo-wave">WAVE</span><span class="logo-pull">PULL</span>
+    </div>
+    <p class="tagline">PULL MUSIC FROM THE SOURCE</p>
+  </header>
+
+  <main>
+    <form id="search-form" autocomplete="off" novalidate>
+      <div class="search-wrap">
+        <input
+          id="search-input"
+          type="text"
+          placeholder="song name / artist — title / URL"
+          spellcheck="false"
+          aria-label="Search"
+        >
+        <button type="submit" id="search-btn" aria-label="Search">
+          <span class="btn-text">SEARCH</span>
+          <span class="btn-loading" hidden aria-hidden="true">…</span>
+        </button>
+      </div>
+      <p class="search-error" id="search-error" role="alert" hidden></p>
+    </form>
+
+    <div id="source-errors" class="source-errors" hidden>
+      <p id="source-error-text"></p>
+    </div>
+
+    <section id="results-section" hidden aria-live="polite">
+      <p class="results-count" id="results-count"></p>
+      <ul id="results-list" aria-label="Search results"></ul>
+    </section>
+
+    <section id="no-results" class="no-results" hidden>
+      <p>No results found.</p>
+    </section>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

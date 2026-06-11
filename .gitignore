@@ -1,0 +1,29 @@
+# Speckit planning artifacts
+.specify/
+specs/
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
