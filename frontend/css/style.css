@@ -347,6 +347,120 @@ main {
   box-shadow: none;
 }
 
+/* ── Metadata modal ──────────────────────────────────── */
+#metadata-modal {
+  background: var(--surface);
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 0;
+  max-width: 420px;
+  width: calc(100% - 2rem);
+}
+
+#metadata-modal::backdrop {
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(2px);
+}
+
+.modal-panel { padding: 1.8rem 1.6rem 1.4rem; }
+
+.modal-title {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.36em;
+  color: var(--accent);
+  margin-bottom: 1.2rem;
+}
+
+.modal-field { margin-bottom: 0.9rem; }
+
+.modal-field label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+  color: var(--text-dim);
+  margin-bottom: 0.3rem;
+}
+
+.modal-field input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  padding: 0.6rem 0.8rem;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.modal-field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-dim), 0 0 10px rgba(0, 229, 255, 0.15);
+}
+
+.modal-field input::placeholder { color: var(--text-dim); }
+
+.modal-error {
+  color: var(--error);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  margin-bottom: 0.7rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  margin-top: 1.1rem;
+}
+
+#meta-cancel-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 0.6rem 1.1rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+#meta-cancel-btn:hover { border-color: var(--text-dim); color: var(--text); }
+
+#meta-download-btn {
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  color: #000;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 0.6rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  transition: background 0.15s;
+}
+
+#meta-download-btn:hover { background: #29d6f0; }
+#meta-download-btn:disabled { background: var(--text-dim); cursor: not-allowed; }
+
+@media (max-width: 480px) {
+  .modal-actions { flex-direction: column-reverse; }
+  #meta-cancel-btn, #meta-download-btn { width: 100%; }
+}
+
 /* ── No results ──────────────────────────────────────── */
 .no-results {
   margin-top: 2.5rem;

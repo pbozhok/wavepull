@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 
 import yt_dlp
+from mutagen import File as MutagenFile
 
 from .base import (
     NotDownloadableError,
@@ -14,7 +15,7 @@ from .base import (
     SourceUnavailableError,
     UnsupportedURLError,
 )
-from ..models.result import SourceResult
+from ..models.result import DownloadMetadata, SourceResult
 
 _URL_RE = re.compile(r"https?://(www\.)?(youtube\.com|youtu\.be)/")
 
@@ -58,7 +59,31 @@ def _make_result(info: dict, source: str) -> SourceResult:
     )
 
 
-def _ydl_prepare_download(url: str, source_name: str) -> tuple[str, str, str]:
+def _write_metadata(path: str, metadata: DownloadMetadata) -> None:
+    audio = MutagenFile(path, easy=True)
+    if audio is None:
+        return
+    if audio.tags is None:
+        try:
+            audio.add_tags()
+        except Exception:
+            pass
+    if metadata.title:
+        audio["title"] = [metadata.title]
+    if metadata.artist:
+        audio["artist"] = [metadata.artist]
+    if metadata.album:
+        audio["album"] = [metadata.album]
+    if metadata.year:
+        audio["date"] = [metadata.year]
+    audio.save()
+
+
+def _ydl_prepare_download(
+    url: str,
+    source_name: str,
+    metadata: DownloadMetadata | None = None,
+) -> tuple[str, str, str]:
     tmpdir = tempfile.mkdtemp(prefix="wavepull_")
     opts = {
         **_YDL_BASE_OPTS,
@@ -75,10 +100,16 @@ def _ydl_prepare_download(url: str, source_name: str) -> tuple[str, str, str]:
 
         audio_file = files[0]
         ext = audio_file.suffix.lstrip(".")
-        title = (info.get("title") or "track").replace("/", "-")[:80]
-        artist = (info.get("uploader") or info.get("channel") or "Unknown").replace("/", "-")[:50]
         mime = _MIME_MAP.get(ext, "audio/mpeg")
-        filename = f"{artist} - {title}.{ext}"
+
+        if metadata:
+            title = metadata.title.replace("/", "-")[:80]
+            _write_metadata(str(audio_file), metadata)
+            filename = f"{title}.{ext}"
+        else:
+            title = (info.get("title") or "track").replace("/", "-")[:80]
+            artist = (info.get("uploader") or info.get("channel") or "Unknown").replace("/", "-")[:50]
+            filename = f"{artist} - {title}.{ext}"
         return str(audio_file), mime, filename
     except NotDownloadableError:
         shutil.rmtree(tmpdir, ignore_errors=True)
@@ -121,5 +152,9 @@ class YouTubeSource(SourcePlugin):
         except yt_dlp.utils.DownloadError as exc:
             raise SourceUnavailableError(str(exc)) from exc
 
-    def prepare_download(self, url: str) -> tuple[str, str, str]:
-        return _ydl_prepare_download(url, self.name)
+    def prepare_download(
+        self,
+        url: str,
+        metadata: DownloadMetadata | None = None,
+    ) -> tuple[str, str, str]:
+        return _ydl_prepare_download(url, self.name, metadata)

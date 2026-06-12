@@ -1,40 +1,69 @@
 from __future__ import annotations
 import asyncio
+import re
 import shutil
 import urllib.parse
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
+from pydantic import BaseModel, field_validator
 
+from ..models.result import DownloadMetadata
 from ..sources import _pool, find_source_for_url
 from ..sources.base import NotDownloadableError, SourceUnavailableError
 
 router = APIRouter()
 
 
-async def _run_prepare(source, url: str) -> tuple[str, str, str]:
+class DownloadRequest(BaseModel):
+    url: str
+    title: str
+    artist: str
+    album: str = ""
+    year: str = ""
+
+    @field_validator("title", "artist")
+    @classmethod
+    def must_not_be_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("must not be blank")
+        return v.strip()
+
+    @field_validator("year")
+    @classmethod
+    def year_format(cls, v: str) -> str:
+        if v and not re.fullmatch(r"\d{4}", v):
+            raise ValueError("must be a 4-digit year or empty")
+        return v
+
+
+async def _run_prepare(source, url: str, metadata: DownloadMetadata) -> tuple[str, str, str]:
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(_pool, source.prepare_download, url)
+    return await loop.run_in_executor(_pool, source.prepare_download, url, metadata)
 
 
-@router.get("/download")
+@router.post("/download")
 async def download(
-    url: str = Query(..., description="Source page URL from a search result"),
+    body: DownloadRequest,
     background_tasks: BackgroundTasks = None,
 ):
-    if not url:
-        raise HTTPException(status_code=400, detail="url parameter is required")
-
-    source = find_source_for_url(url)
+    source = find_source_for_url(body.url)
     if source is None:
         raise HTTPException(
             status_code=422,
             detail="Unsupported URL. Supported sources: YouTube, SoundCloud, Bandcamp",
         )
 
+    metadata = DownloadMetadata(
+        title=body.title,
+        artist=body.artist,
+        album=body.album,
+        year=body.year,
+    )
+
     try:
-        file_path, mime, filename = await _run_prepare(source, url)
+        file_path, mime, filename = await _run_prepare(source, body.url, metadata)
     except NotDownloadableError as exc:
         raise HTTPException(
             status_code=422,

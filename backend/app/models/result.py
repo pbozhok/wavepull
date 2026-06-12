@@ -4,6 +4,14 @@ from typing import Literal
 
 
 @dataclass
+class DownloadMetadata:
+    title: str
+    artist: str
+    album: str = ""
+    year: str = ""
+
+
+@dataclass
 class SourceResult:
     id: str
     title: str

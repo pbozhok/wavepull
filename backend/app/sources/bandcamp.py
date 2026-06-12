@@ -10,7 +10,7 @@ from .base import (
     UnsupportedURLError,
 )
 from .youtube import _YDL_BASE_OPTS, _ydl_prepare_download
-from ..models.result import SourceResult
+from ..models.result import DownloadMetadata, SourceResult
 
 _URL_RE = re.compile(r"https?://[^.]+\.bandcamp\.com/")
 
@@ -52,5 +52,9 @@ class BandcampSource(SourcePlugin):
         except yt_dlp.utils.DownloadError as exc:
             raise SourceUnavailableError(str(exc)) from exc
 
-    def prepare_download(self, url: str) -> tuple[str, str, str]:
-        return _ydl_prepare_download(url, self.name)
+    def prepare_download(
+        self,
+        url: str,
+        metadata: DownloadMetadata | None = None,
+    ) -> tuple[str, str, str]:
+        return _ydl_prepare_download(url, self.name, metadata)
