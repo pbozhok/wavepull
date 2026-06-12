@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..models.result import SourceResult
+    from ..models.result import DownloadMetadata, SourceResult
 
 
 class SourceUnavailableError(Exception):
@@ -35,8 +35,14 @@ class SourcePlugin(ABC):
         """Resolve a direct URL to a single result."""
 
     @abstractmethod
-    def prepare_download(self, url: str) -> tuple[str, str, str]:
-        """Download audio to a temp directory.
+    def prepare_download(
+        self,
+        url: str,
+        metadata: "DownloadMetadata | None" = None,
+    ) -> tuple[str, str, str]:
+        """Download audio to a temp directory. Interface v2.
+
+        When metadata is provided, embed title/artist/album/year into the file.
         Returns (file_path, mime_type, suggested_filename).
         Caller must delete the parent temp directory after use.
         """

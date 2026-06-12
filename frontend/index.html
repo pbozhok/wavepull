@@ -89,6 +89,44 @@
     </section>
   </main>
 
+  <!-- Metadata editor modal -->
+  <dialog id="metadata-modal" aria-labelledby="modal-title">
+    <div class="modal-panel">
+      <h2 class="modal-title" id="modal-title">DOWNLOAD</h2>
+      <form id="metadata-form" autocomplete="off" novalidate>
+        <input type="hidden" id="meta-url">
+        <div class="modal-field">
+          <label for="meta-title">TITLE</label>
+          <input id="meta-title" type="text" required spellcheck="false">
+        </div>
+        <div class="modal-field">
+          <label for="meta-artist">ARTIST</label>
+          <input id="meta-artist" type="text" required spellcheck="false">
+        </div>
+        <div class="modal-field">
+          <label for="meta-album">ALBUM</label>
+          <input id="meta-album" type="text" spellcheck="false">
+        </div>
+        <div class="modal-field">
+          <label for="meta-year">YEAR</label>
+          <input id="meta-year" type="text" pattern="\d{4}" maxlength="4" placeholder="e.g. 1992" inputmode="numeric">
+        </div>
+        <p class="modal-error" id="meta-error" role="alert" hidden></p>
+        <div class="modal-actions">
+          <button type="button" id="meta-cancel-btn">CANCEL</button>
+          <button type="submit" id="meta-download-btn">
+            <span class="btn-text">DOWNLOAD</span>
+            <span class="btn-loading" hidden aria-hidden="true">
+              <span class="wave-bar"></span>
+              <span class="wave-bar"></span>
+              <span class="wave-bar"></span>
+            </span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
   <script src="js/app.js"></script>
 </body>
 </html>
