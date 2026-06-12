@@ -5,7 +5,7 @@ import pytest
 
 from backend.app.sources.bandcamp import BandcampSource
 from backend.app.sources.base import SourceUnavailableError, UnsupportedURLError
-from backend.app.models.result import SourceResult
+from backend.app.models.result import QualityTier, SourceResult
 
 _SEARCH_HTML = """
 <ul>
@@ -92,3 +92,36 @@ class TestPrepareDownload:
 
         assert mime == "audio/mpeg"
         assert "BC Track" in filename
+
+
+class TestProbeQuality:
+    def _make_ydl_mock(self, formats):
+        m = MagicMock()
+        m.__enter__ = lambda s: m
+        m.__exit__ = MagicMock(return_value=False)
+        m.extract_info.return_value = {"formats": formats}
+        return m
+
+    def test_flac_returns_flac(self, source):
+        fmts = [{"ext": "flac", "acodec": "flac", "abr": None}]
+        with patch("yt_dlp.YoutubeDL", return_value=self._make_ydl_mock(fmts)):
+            assert source.probe_quality("https://artist.bandcamp.com/track/song") == QualityTier.FLAC
+
+    def test_320kbps_returns_hi_mp3(self, source):
+        fmts = [{"ext": "mp3", "acodec": "mp3", "abr": 320}]
+        with patch("yt_dlp.YoutubeDL", return_value=self._make_ydl_mock(fmts)):
+            assert source.probe_quality("https://artist.bandcamp.com/track/song") == QualityTier.HI_MP3
+
+    def test_low_bitrate_returns_standard(self, source):
+        fmts = [{"ext": "mp3", "acodec": "mp3", "abr": 128}]
+        with patch("yt_dlp.YoutubeDL", return_value=self._make_ydl_mock(fmts)):
+            assert source.probe_quality("https://artist.bandcamp.com/track/song") == QualityTier.STANDARD
+
+    def test_exception_returns_unknown(self, source):
+        import yt_dlp
+        m = MagicMock()
+        m.__enter__ = lambda s: m
+        m.__exit__ = MagicMock(return_value=False)
+        m.extract_info.side_effect = yt_dlp.utils.DownloadError("unavailable")
+        with patch("yt_dlp.YoutubeDL", return_value=m):
+            assert source.probe_quality("https://artist.bandcamp.com/track/song") == QualityTier.UNKNOWN

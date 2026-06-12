@@ -310,6 +310,18 @@ main {
 .source-soundcloud{ background: rgba(255, 112, 67, 0.14); color: var(--sc); border: 1px solid rgba(255, 112, 67, 0.3); }
 .source-bandcamp  { background: rgba(77, 208, 225, 0.12); color: var(--bc); border: 1px solid rgba(77, 208, 225, 0.3); }
 
+/* Quality badges */
+.quality-badge {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 0.13rem 0.38rem;
+  border-radius: 1px;
+}
+.quality-flac   { background: rgba(105, 240, 174, 0.13); color: #69f0ae; border: 1px solid rgba(105, 240, 174, 0.28); }
+.quality-hi-mp3 { background: rgba(0, 229, 255, 0.10);  color: var(--accent); border: 1px solid rgba(0, 229, 255, 0.25); }
+
 .result-duration {
   font-family: var(--font-mono);
   font-size: 0.62rem;

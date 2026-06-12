@@ -56,6 +56,7 @@ form.addEventListener('submit', async (e) => {
 
     const data = await resp.json();
     renderResults(data);
+    fetchQualityBadges(data.results);
   } catch {
     showError('Network error — is the server running?');
   } finally {
@@ -87,6 +88,7 @@ function renderResults(data) {
 function buildCard(result, index) {
   const li = document.createElement('li');
   li.className = 'result-card';
+  li.dataset.url = result.source_page_url;
   li.style.setProperty('--i', Math.min(index, 9));
 
   const thumb = result.thumbnail_url
@@ -138,6 +140,45 @@ function buildCard(result, index) {
   }
 
   return li;
+}
+
+// ── Quality badges ───────────────────────────────────
+
+async function fetchQualityBadges(results) {
+  if (!results || results.length === 0) return;
+  const urls = results.map(r => r.source_page_url);
+  try {
+    const resp = await fetch('/api/quality', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urls }),
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    applyQualityBadges(data.results);
+  } catch {
+    // badges are best-effort; silently ignore network errors
+  }
+}
+
+function applyQualityBadges(tiers) {
+  document.querySelectorAll('.result-card').forEach(card => {
+    const url = card.dataset.url;
+    const tier = tiers[url];
+    if (tier !== 'flac' && tier !== 'hi_mp3') return;
+
+    const badge = document.createElement('span');
+    if (tier === 'flac') {
+      badge.className = 'quality-badge quality-flac';
+      badge.textContent = 'FLAC';
+    } else {
+      badge.className = 'quality-badge quality-hi-mp3';
+      badge.textContent = 'HI';
+    }
+
+    const footer = card.querySelector('.result-footer');
+    if (footer) footer.prepend(badge);
+  });
 }
 
 // ── Metadata modal ────────────────────────────────────
