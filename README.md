@@ -23,6 +23,16 @@ uvicorn backend.app.main:app
 
 Open [http://localhost:8000](http://localhost:8000).
 
+## Desktop shortcut (Windows)
+
+After completing the Quickstart, create a one-click desktop icon:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File launcher\install-shortcut.ps1
+```
+
+This places a **WavePull** shortcut on your Desktop. Double-clicking it starts the server (if not already running) and opens the app in your browser. Run the command again if you move the project folder.
+
 ## Usage
 
 | Input | Example |
