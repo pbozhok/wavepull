@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import urllib.request
 from pathlib import Path
 
 import yt_dlp
@@ -37,9 +38,22 @@ _YDL_BASE_OPTS = {
 }
 
 
+def _parse_artist_title(info: dict) -> tuple[str, str]:
+    # yt-dlp populates these for YouTube Music / official uploads
+    if info.get("artist") and info.get("track"):
+        return info["artist"], info["track"]
+    full_title = info.get("title") or "Unknown"
+    # Many music uploads follow "Artist - Title (Mix)" convention
+    if " - " in full_title:
+        left, right = full_title.split(" - ", 1)
+        if left.strip() and right.strip():
+            return left.strip(), right.strip()
+    channel = info.get("uploader") or info.get("channel") or "Unknown"
+    return channel, full_title
+
+
 def _make_result(info: dict, source: str) -> SourceResult:
-    title = info.get("title") or "Unknown"
-    artist = info.get("uploader") or info.get("channel") or "Unknown"
+    artist, title = _parse_artist_title(info)
     page_url = info.get("webpage_url") or info.get("url") or ""
     video_id = info.get("id")
     if source == "youtube" and video_id:
@@ -60,6 +74,48 @@ def _make_result(info: dict, source: str) -> SourceResult:
     )
 
 
+def _fetch_thumbnail(url: str) -> tuple[bytes, str] | None:
+    try:
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            data = resp.read()
+            mime = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
+            return data, mime
+    except Exception:
+        return None
+
+
+def _embed_cover_art(path: str, image_data: bytes, mime: str = "image/jpeg") -> None:
+    ext = Path(path).suffix.lower().lstrip(".")
+    try:
+        if ext == "mp3":
+            from mutagen.id3 import APIC, ID3
+            try:
+                tags = ID3(path)
+            except Exception:
+                tags = ID3()
+            tags.delall("APIC")
+            tags.add(APIC(encoding=3, mime=mime, type=3, desc="Cover", data=image_data))
+            tags.save(path)
+        elif ext == "flac":
+            from mutagen.flac import FLAC, Picture
+            audio = FLAC(path)
+            audio.clear_pictures()
+            pic = Picture()
+            pic.type = 3
+            pic.mime = mime
+            pic.data = image_data
+            audio.add_picture(pic)
+            audio.save()
+        elif ext == "m4a":
+            from mutagen.mp4 import MP4, MP4Cover
+            audio = MP4(path)
+            cover_format = MP4Cover.FORMAT_JPEG if "jpeg" in mime else MP4Cover.FORMAT_PNG
+            audio.tags["covr"] = [MP4Cover(image_data, imageformat=cover_format)]
+            audio.save()
+    except Exception:
+        pass
+
+
 def _write_metadata(path: str, metadata: DownloadMetadata) -> None:
     audio = MutagenFile(path, easy=True)
     if audio is None:
@@ -77,7 +133,13 @@ def _write_metadata(path: str, metadata: DownloadMetadata) -> None:
         audio["album"] = [metadata.album]
     if metadata.year:
         audio["date"] = [metadata.year]
+    if metadata.genre:
+        audio["genre"] = [metadata.genre]
     audio.save()
+    if metadata.thumbnail_url:
+        result = _fetch_thumbnail(metadata.thumbnail_url)
+        if result:
+            _embed_cover_art(path, *result)
 
 
 def _ydl_probe_quality(url: str) -> QualityTier:
@@ -143,12 +205,13 @@ def _ydl_prepare_download(
 
         if metadata:
             title = metadata.title.replace("/", "-")[:80]
+            artist = metadata.artist.replace("/", "-")[:50]
             _write_metadata(str(audio_file), metadata)
-            filename = f"{title}.{ext}"
+            filename = f"{title} - {artist}.{ext}"
         else:
             title = (info.get("title") or "track").replace("/", "-")[:80]
             artist = (info.get("uploader") or info.get("channel") or "Unknown").replace("/", "-")[:50]
-            filename = f"{artist} - {title}.{ext}"
+            filename = f"{title} - {artist}.{ext}"
         return str(audio_file), mime, filename
     except NotDownloadableError:
         shutil.rmtree(tmpdir, ignore_errors=True)

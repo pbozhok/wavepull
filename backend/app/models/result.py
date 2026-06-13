@@ -17,6 +17,8 @@ class DownloadMetadata:
     artist: str
     album: str = ""
     year: str = ""
+    genre: str = ""
+    thumbnail_url: str = ""
 
 
 @dataclass

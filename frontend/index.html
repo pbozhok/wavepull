@@ -112,6 +112,14 @@
           <label for="meta-year">YEAR</label>
           <input id="meta-year" type="text" pattern="\d{4}" maxlength="4" placeholder="e.g. 1992" inputmode="numeric">
         </div>
+        <div class="modal-field">
+          <label for="meta-genre">GENRE</label>
+          <div class="genre-wrap">
+            <input id="meta-genre" type="text" spellcheck="false">
+            <button type="button" id="meta-genre-retry" class="genre-retry-btn" aria-label="Retry genre lookup" title="Retry genre lookup">↻</button>
+          </div>
+          <span id="meta-genre-status" class="genre-status"></span>
+        </div>
         <p class="modal-error" id="meta-error" role="alert" hidden></p>
         <div class="modal-actions">
           <button type="button" id="meta-cancel-btn">CANCEL</button>

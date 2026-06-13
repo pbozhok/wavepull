@@ -22,6 +22,8 @@ class DownloadRequest(BaseModel):
     artist: str
     album: str = ""
     year: str = ""
+    genre: str = ""
+    thumbnail_url: str = ""
 
     @field_validator("title", "artist")
     @classmethod
@@ -60,6 +62,8 @@ async def download(
         artist=body.artist,
         album=body.album,
         year=body.year,
+        genre=body.genre.strip(),
+        thumbnail_url=body.thumbnail_url,
     )
 
     try:
