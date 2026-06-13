@@ -1,6 +1,14 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Literal
+
+
+class QualityTier(str, Enum):
+    FLAC = "flac"
+    HI_MP3 = "hi_mp3"
+    STANDARD = "standard"
+    UNKNOWN = "unknown"
 
 
 @dataclass
@@ -20,6 +28,7 @@ class SourceResult:
     thumbnail_url: str | None
     source_page_url: str
     duration_seconds: int | None
+    quality_tier: QualityTier = QualityTier.UNKNOWN
 
 
 @dataclass

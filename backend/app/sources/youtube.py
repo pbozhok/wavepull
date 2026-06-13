@@ -3,6 +3,7 @@ import hashlib
 import os
 import re
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -15,7 +16,7 @@ from .base import (
     SourceUnavailableError,
     UnsupportedURLError,
 )
-from ..models.result import DownloadMetadata, SourceResult
+from ..models.result import DownloadMetadata, QualityTier, SourceResult
 
 _URL_RE = re.compile(r"https?://(www\.)?(youtube\.com|youtu\.be)/")
 
@@ -79,6 +80,29 @@ def _write_metadata(path: str, metadata: DownloadMetadata) -> None:
     audio.save()
 
 
+def _ydl_probe_quality(url: str) -> QualityTier:
+    """Probe available audio quality for a URL without downloading.
+    Returns QualityTier. Never raises.
+    """
+    try:
+        with yt_dlp.YoutubeDL(_YDL_BASE_OPTS) as ydl:
+            info = ydl.extract_info(url, download=False)
+        formats = info.get("formats") or []
+        audio_fmts = [
+            f for f in formats
+            if f.get("acodec") not in (None, "none") or f.get("ext") in _MIME_MAP
+        ]
+        if any(f.get("ext") == "flac" for f in audio_fmts):
+            return QualityTier.FLAC
+        if any((f.get("abr") or 0) >= 320 for f in audio_fmts):
+            return QualityTier.HI_MP3
+        if audio_fmts:
+            return QualityTier.STANDARD
+        return QualityTier.UNKNOWN
+    except Exception:
+        return QualityTier.UNKNOWN
+
+
 def _ydl_prepare_download(
     url: str,
     source_name: str,
@@ -87,7 +111,7 @@ def _ydl_prepare_download(
     tmpdir = tempfile.mkdtemp(prefix="wavepull_")
     opts = {
         **_YDL_BASE_OPTS,
-        "format": "bestaudio/best",
+        "format": "bestaudio[ext=flac]/bestaudio[ext=mp3]/bestaudio",
         "outtmpl": os.path.join(tmpdir, "audio.%(ext)s"),
     }
     try:
@@ -100,6 +124,21 @@ def _ydl_prepare_download(
 
         audio_file = files[0]
         ext = audio_file.suffix.lstrip(".")
+
+        if ext not in ("flac", "mp3"):
+            mp3_path = audio_file.with_suffix(".mp3")
+            try:
+                subprocess.run(
+                    ["ffmpeg", "-y", "-i", str(audio_file), "-q:a", "0", str(mp3_path)],
+                    capture_output=True,
+                    check=True,
+                )
+                audio_file.unlink()
+                audio_file = mp3_path
+                ext = "mp3"
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                pass  # ffmpeg unavailable; keep original format
+
         mime = _MIME_MAP.get(ext, "audio/mpeg")
 
         if metadata:
@@ -158,3 +197,6 @@ class YouTubeSource(SourcePlugin):
         metadata: DownloadMetadata | None = None,
     ) -> tuple[str, str, str]:
         return _ydl_prepare_download(url, self.name, metadata)
+
+    def probe_quality(self, url: str) -> QualityTier:
+        return _ydl_probe_quality(url)

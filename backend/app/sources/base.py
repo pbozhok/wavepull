@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..models.result import DownloadMetadata, SourceResult
+    from ..models.result import DownloadMetadata, QualityTier, SourceResult
 
 
 class SourceUnavailableError(Exception):
@@ -46,3 +46,11 @@ class SourcePlugin(ABC):
         Returns (file_path, mime_type, suggested_filename).
         Caller must delete the parent temp directory after use.
         """
+
+    def probe_quality(self, url: str) -> "QualityTier":
+        """Probe available audio quality for a URL without downloading.
+        Returns QualityTier. Never raises — exceptions return UNKNOWN.
+        Override in each source plugin using _ydl_probe_quality().
+        """
+        from ..models.result import QualityTier
+        return QualityTier.UNKNOWN

@@ -94,4 +94,6 @@ class TestSearchEndpoint:
         assert set(r.keys()) == {
             "id", "title", "artist", "source",
             "thumbnail_url", "source_page_url", "duration_seconds",
+            "quality_tier",
         }
+        assert r["quality_tier"] == "unknown"

@@ -1,11 +1,11 @@
 from __future__ import annotations
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from backend.app.sources.soundcloud import SoundCloudSource
 from backend.app.sources.base import SourceUnavailableError, UnsupportedURLError
-from backend.app.models.result import SourceResult
+from backend.app.models.result import QualityTier, SourceResult
 
 
 @pytest.fixture
@@ -94,3 +94,36 @@ class TestPrepareDownload:
 
         assert mime == "audio/mpeg"
         assert "SC Track" in filename
+
+
+class TestProbeQuality:
+    def _make_ydl_mock(self, formats):
+        m = MagicMock()
+        m.__enter__ = lambda s: m
+        m.__exit__ = MagicMock(return_value=False)
+        m.extract_info.return_value = {"formats": formats}
+        return m
+
+    def test_flac_returns_flac(self, source):
+        fmts = [{"ext": "flac", "acodec": "flac", "abr": None}]
+        with patch("yt_dlp.YoutubeDL", return_value=self._make_ydl_mock(fmts)):
+            assert source.probe_quality("https://soundcloud.com/artist/track") == QualityTier.FLAC
+
+    def test_320kbps_returns_hi_mp3(self, source):
+        fmts = [{"ext": "mp3", "acodec": "mp3", "abr": 320}]
+        with patch("yt_dlp.YoutubeDL", return_value=self._make_ydl_mock(fmts)):
+            assert source.probe_quality("https://soundcloud.com/artist/track") == QualityTier.HI_MP3
+
+    def test_128kbps_returns_standard(self, source):
+        fmts = [{"ext": "mp3", "acodec": "mp3", "abr": 128}]
+        with patch("yt_dlp.YoutubeDL", return_value=self._make_ydl_mock(fmts)):
+            assert source.probe_quality("https://soundcloud.com/artist/track") == QualityTier.STANDARD
+
+    def test_exception_returns_unknown(self, source):
+        import yt_dlp
+        m = MagicMock()
+        m.__enter__ = lambda s: m
+        m.__exit__ = MagicMock(return_value=False)
+        m.extract_info.side_effect = yt_dlp.utils.DownloadError("unavailable")
+        with patch("yt_dlp.YoutubeDL", return_value=m):
+            assert source.probe_quality("https://soundcloud.com/artist/track") == QualityTier.UNKNOWN

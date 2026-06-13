@@ -4,9 +4,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from backend.app.sources.youtube import YouTubeSource
+from backend.app.sources.youtube import YouTubeSource, _ydl_probe_quality
 from backend.app.sources.base import SourceUnavailableError, UnsupportedURLError, NotDownloadableError
-from backend.app.models.result import SourceResult
+from backend.app.models.result import QualityTier, SourceResult
 
 
 @pytest.fixture
@@ -144,3 +144,68 @@ class TestPrepareDownload:
             )
             with pytest.raises(NotDownloadableError):
                 source.prepare_download("https://www.youtube.com/watch?v=BLOCKED")
+
+    def test_format_selector_prefers_flac(self, source, tmp_path):
+        fake_audio = tmp_path / "audio.flac"
+        fake_audio.write_bytes(b"fake")
+        captured_opts = {}
+
+        def capture_ydl(opts):
+            captured_opts.update(opts)
+            m = MagicMock()
+            m.__enter__ = lambda s: m
+            m.__exit__ = MagicMock(return_value=False)
+            m.extract_info.return_value = _fake_entry(ext="flac")
+            return m
+
+        with patch("yt_dlp.YoutubeDL", side_effect=capture_ydl), \
+             patch("tempfile.mkdtemp", return_value=str(tmp_path)):
+            source.prepare_download("https://www.youtube.com/watch?v=ABC123")
+
+        fmt = captured_opts.get("format", "")
+        assert "bestaudio[ext=flac]" in fmt
+        assert "bestaudio[ext=mp3]" in fmt
+        assert "postprocessors" not in captured_opts
+
+
+# --- probe_quality ---
+
+class TestProbeQuality:
+    def _make_ydl_mock(self, formats):
+        m = MagicMock()
+        m.__enter__ = lambda s: m
+        m.__exit__ = MagicMock(return_value=False)
+        m.extract_info.return_value = {"formats": formats}
+        return m
+
+    def test_flac_format_returns_flac(self, source):
+        fmts = [{"ext": "flac", "acodec": "flac", "abr": None}]
+        with patch("yt_dlp.YoutubeDL", return_value=self._make_ydl_mock(fmts)):
+            assert source.probe_quality("https://www.youtube.com/watch?v=X") == QualityTier.FLAC
+
+    def test_320kbps_mp3_returns_hi_mp3(self, source):
+        fmts = [{"ext": "mp3", "acodec": "mp3", "abr": 320}]
+        with patch("yt_dlp.YoutubeDL", return_value=self._make_ydl_mock(fmts)):
+            assert source.probe_quality("https://www.youtube.com/watch?v=X") == QualityTier.HI_MP3
+
+    def test_low_bitrate_returns_standard(self, source):
+        fmts = [{"ext": "mp3", "acodec": "mp3", "abr": 128}]
+        with patch("yt_dlp.YoutubeDL", return_value=self._make_ydl_mock(fmts)):
+            assert source.probe_quality("https://www.youtube.com/watch?v=X") == QualityTier.STANDARD
+
+    def test_exception_returns_unknown(self, source):
+        import yt_dlp
+        m = MagicMock()
+        m.__enter__ = lambda s: m
+        m.__exit__ = MagicMock(return_value=False)
+        m.extract_info.side_effect = yt_dlp.utils.DownloadError("blocked")
+        with patch("yt_dlp.YoutubeDL", return_value=m):
+            assert source.probe_quality("https://www.youtube.com/watch?v=X") == QualityTier.UNKNOWN
+
+    def test_flac_beats_320_when_both_present(self, source):
+        fmts = [
+            {"ext": "mp3", "acodec": "mp3", "abr": 320},
+            {"ext": "flac", "acodec": "flac", "abr": None},
+        ]
+        with patch("yt_dlp.YoutubeDL", return_value=self._make_ydl_mock(fmts)):
+            assert source.probe_quality("https://www.youtube.com/watch?v=X") == QualityTier.FLAC

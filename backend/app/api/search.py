@@ -44,6 +44,7 @@ async def search(body: SearchRequest):
                 "thumbnail_url": r.thumbnail_url,
                 "source_page_url": r.source_page_url,
                 "duration_seconds": r.duration_seconds,
+                "quality_tier": r.quality_tier.value,
             }
             for r in response.results
         ],

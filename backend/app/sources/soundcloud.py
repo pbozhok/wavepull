@@ -9,8 +9,8 @@ from .base import (
     SourceUnavailableError,
     UnsupportedURLError,
 )
-from .youtube import _YDL_BASE_OPTS, _make_result, _ydl_prepare_download
-from ..models.result import DownloadMetadata, SourceResult
+from .youtube import _YDL_BASE_OPTS, _make_result, _ydl_prepare_download, _ydl_probe_quality
+from ..models.result import DownloadMetadata, QualityTier, SourceResult
 
 _URL_RE = re.compile(r"https?://(www\.)?soundcloud\.com/")
 
@@ -54,3 +54,6 @@ class SoundCloudSource(SourcePlugin):
         metadata: DownloadMetadata | None = None,
     ) -> tuple[str, str, str]:
         return _ydl_prepare_download(url, self.name, metadata)
+
+    def probe_quality(self, url: str) -> QualityTier:
+        return _ydl_probe_quality(url)
