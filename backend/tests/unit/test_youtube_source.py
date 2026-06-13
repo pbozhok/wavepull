@@ -164,7 +164,7 @@ class TestPrepareDownload:
 
         fmt = captured_opts.get("format", "")
         assert "bestaudio[ext=flac]" in fmt
-        assert "bestaudio[abr>=320]" in fmt
+        assert "bestaudio[ext=mp3]" in fmt
         assert "postprocessors" not in captured_opts
 
 
