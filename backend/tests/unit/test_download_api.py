@@ -19,6 +19,8 @@ _FULL_BODY = {
     "artist": "Aphex Twin",
     "album": "Selected Ambient Works",
     "year": "1992",
+    "genre": "ambient",
+    "thumbnail_url": "https://i.ytimg.com/vi/ABC123/hqdefault.jpg",
 }
 
 
@@ -95,6 +97,47 @@ class TestDownloadEndpointSuccess:
         assert metadata.artist == "Aphex Twin"
         assert metadata.album == "Selected Ambient Works"
         assert metadata.year == "1992"
+        assert metadata.genre == "ambient"
+        assert metadata.thumbnail_url == "https://i.ytimg.com/vi/ABC123/hqdefault.jpg"
+
+    def test_genre_passed_when_provided(self, tmp_path):
+        src = _mock_source(tmp_path)
+        body = {**_FULL_BODY, "genre": "progressive house"}
+        with patch("backend.app.api.download.find_source_for_url", return_value=src):
+            client.post("/api/download", json=body)
+        _, metadata = src.prepare_download.call_args.args
+        assert metadata.genre == "progressive house"
+
+    def test_genre_empty_when_omitted(self, tmp_path):
+        src = _mock_source(tmp_path)
+        body = {"url": _YT_URL, "title": "Track", "artist": "Artist"}
+        with patch("backend.app.api.download.find_source_for_url", return_value=src):
+            client.post("/api/download", json=body)
+        _, metadata = src.prepare_download.call_args.args
+        assert metadata.genre == ""
+
+    def test_genre_trimmed(self, tmp_path):
+        src = _mock_source(tmp_path)
+        body = {**_FULL_BODY, "genre": "  house  "}
+        with patch("backend.app.api.download.find_source_for_url", return_value=src):
+            client.post("/api/download", json=body)
+        _, metadata = src.prepare_download.call_args.args
+        assert metadata.genre == "house"
+
+    def test_empty_genre_is_valid(self, tmp_path):
+        src = _mock_source(tmp_path)
+        body = {**_FULL_BODY, "genre": ""}
+        with patch("backend.app.api.download.find_source_for_url", return_value=src):
+            resp = client.post("/api/download", json=body)
+        assert resp.status_code == 200
+
+    def test_whitespace_only_genre_treated_as_empty(self, tmp_path):
+        src = _mock_source(tmp_path)
+        body = {**_FULL_BODY, "genre": "   "}
+        with patch("backend.app.api.download.find_source_for_url", return_value=src):
+            client.post("/api/download", json=body)
+        _, metadata = src.prepare_download.call_args.args
+        assert metadata.genre == ""
 
     def test_empty_year_is_valid(self, tmp_path):
         src = _mock_source(tmp_path)
@@ -171,7 +214,29 @@ class TestWriteMetadata:
         set_keys = [c.args[0] for c in mock_audio.__setitem__.call_args_list]
         assert "album" not in set_keys
         assert "date" not in set_keys
+        assert "genre" not in set_keys
         mock_audio.save.assert_called_once()
+
+    def test_write_metadata_sets_genre(self, tmp_path):
+        from backend.app.sources.youtube import _write_metadata
+
+        metadata = DownloadMetadata(title="Track", artist="Artist", genre="progressive house")
+        mock_audio = MagicMock()
+        mock_audio.tags = {}
+        with patch("backend.app.sources.youtube.MutagenFile", return_value=mock_audio):
+            _write_metadata("dummy.mp3", metadata)
+        mock_audio.__setitem__.assert_any_call("genre", ["progressive house"])
+
+    def test_write_metadata_skips_empty_genre(self, tmp_path):
+        from backend.app.sources.youtube import _write_metadata
+
+        metadata = DownloadMetadata(title="Track", artist="Artist", genre="")
+        mock_audio = MagicMock()
+        mock_audio.tags = {}
+        with patch("backend.app.sources.youtube.MutagenFile", return_value=mock_audio):
+            _write_metadata("dummy.mp3", metadata)
+        set_keys = [c.args[0] for c in mock_audio.__setitem__.call_args_list]
+        assert "genre" not in set_keys
 
     def test_write_metadata_noop_when_mutagen_returns_none(self):
         from backend.app.sources.youtube import _write_metadata
@@ -180,3 +245,70 @@ class TestWriteMetadata:
 
         with patch("backend.app.sources.youtube.MutagenFile", return_value=None):
             _write_metadata("dummy.mp3", metadata)
+
+    def test_write_metadata_embeds_cover_art_when_thumbnail_url_set(self, tmp_path):
+        from backend.app.sources.youtube import _write_metadata
+
+        metadata = DownloadMetadata(
+            title="Track", artist="Artist",
+            thumbnail_url="https://example.com/cover.jpg",
+        )
+        mock_audio = MagicMock()
+        mock_audio.tags = {}
+        fake_image = b"\xff\xd8\xff" + b"\x00" * 50
+
+        with patch("backend.app.sources.youtube.MutagenFile", return_value=mock_audio), \
+             patch("backend.app.sources.youtube._fetch_thumbnail", return_value=(fake_image, "image/jpeg")) as mock_fetch, \
+             patch("backend.app.sources.youtube._embed_cover_art") as mock_embed:
+            _write_metadata("dummy.mp3", metadata)
+
+        mock_fetch.assert_called_once_with("https://example.com/cover.jpg")
+        mock_embed.assert_called_once_with("dummy.mp3", fake_image, "image/jpeg")
+
+    def test_write_metadata_skips_cover_art_when_thumbnail_url_empty(self, tmp_path):
+        from backend.app.sources.youtube import _write_metadata
+
+        metadata = DownloadMetadata(title="Track", artist="Artist", thumbnail_url="")
+        mock_audio = MagicMock()
+        mock_audio.tags = {}
+
+        with patch("backend.app.sources.youtube.MutagenFile", return_value=mock_audio), \
+             patch("backend.app.sources.youtube._fetch_thumbnail") as mock_fetch, \
+             patch("backend.app.sources.youtube._embed_cover_art") as mock_embed:
+            _write_metadata("dummy.mp3", metadata)
+
+        mock_fetch.assert_not_called()
+        mock_embed.assert_not_called()
+
+    def test_write_metadata_skips_cover_art_when_fetch_fails(self, tmp_path):
+        from backend.app.sources.youtube import _write_metadata
+
+        metadata = DownloadMetadata(
+            title="Track", artist="Artist",
+            thumbnail_url="https://example.com/cover.jpg",
+        )
+        mock_audio = MagicMock()
+        mock_audio.tags = {}
+
+        with patch("backend.app.sources.youtube.MutagenFile", return_value=mock_audio), \
+             patch("backend.app.sources.youtube._fetch_thumbnail", return_value=None), \
+             patch("backend.app.sources.youtube._embed_cover_art") as mock_embed:
+            _write_metadata("dummy.mp3", metadata)
+
+        mock_embed.assert_not_called()
+
+    def test_thumbnail_url_passed_to_metadata(self, tmp_path):
+        src = _mock_source(tmp_path)
+        body = {**_FULL_BODY, "thumbnail_url": "https://example.com/art.jpg"}
+        with patch("backend.app.api.download.find_source_for_url", return_value=src):
+            client.post("/api/download", json=body)
+        _, metadata = src.prepare_download.call_args.args
+        assert metadata.thumbnail_url == "https://example.com/art.jpg"
+
+    def test_thumbnail_url_empty_when_omitted(self, tmp_path):
+        src = _mock_source(tmp_path)
+        body = {"url": _YT_URL, "title": "Track", "artist": "Artist"}
+        with patch("backend.app.api.download.find_source_for_url", return_value=src):
+            client.post("/api/download", json=body)
+        _, metadata = src.prepare_download.call_args.args
+        assert metadata.thumbnail_url == ""

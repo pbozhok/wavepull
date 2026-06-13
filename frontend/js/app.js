@@ -22,6 +22,9 @@ const metaTitle       = document.getElementById('meta-title');
 const metaArtist      = document.getElementById('meta-artist');
 const metaAlbum       = document.getElementById('meta-album');
 const metaYear        = document.getElementById('meta-year');
+const metaGenre       = document.getElementById('meta-genre');
+const metaGenreRetry  = document.getElementById('meta-genre-retry');
+const metaGenreStatus = document.getElementById('meta-genre-status');
 const metaError       = document.getElementById('meta-error');
 const metaDownloadBtn = document.getElementById('meta-download-btn');
 const metaCancelBtn   = document.getElementById('meta-cancel-btn');
@@ -183,16 +186,50 @@ function applyQualityBadges(tiers) {
 
 // ── Metadata modal ────────────────────────────────────
 
+function setGenreStatus(msg) {
+  metaGenreStatus.textContent = msg;
+}
+
+function fetchGenre(artist, title, clearFirst = false) {
+  if (clearFirst) metaGenre.value = '';
+  metaGenreRetry.disabled = true;
+  setGenreStatus('looking up…');
+
+  fetch('/api/genre', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ artist, title }),
+  })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (data && data.genre) {
+        metaGenre.value = data.genre;
+        setGenreStatus('');
+      } else {
+        setGenreStatus('no match found');
+      }
+    })
+    .catch(() => { setGenreStatus('lookup failed'); })
+    .finally(() => { metaGenreRetry.disabled = false; });
+}
+
+metaGenreRetry.addEventListener('click', () => {
+  fetchGenre(metaArtist.value.trim(), metaTitle.value.trim());
+});
+
 function openMetadataModal(result, triggerEl) {
   metaUrl.value    = result.source_page_url;
   metaTitle.value  = result.title;
   metaArtist.value = result.artist;
   metaAlbum.value  = '';
   metaYear.value   = '';
+  metaGenre.value  = '';
+  setGenreStatus('');
   metaError.hidden = true;
   metaError.textContent = '';
   metadataModal.showModal();
   positionModal(triggerEl);
+  fetchGenre(result.artist, result.title, true);
 }
 
 function positionModal(triggerEl) {
@@ -227,6 +264,7 @@ function positionModal(triggerEl) {
 function closeMetadataModal() {
   metadataModal.close();
   metadataForm.reset();
+  setGenreStatus('');
 }
 
 metaCancelBtn.addEventListener('click', closeMetadataModal);
@@ -259,6 +297,7 @@ async function submitDownload() {
   const artist = metaArtist.value.trim();
   const album  = metaAlbum.value.trim();
   const year   = metaYear.value.trim();
+  const genre  = metaGenre.value.trim();
 
   if (!title) {
     showMetaError('Title is required.');
@@ -276,7 +315,7 @@ async function submitDownload() {
     const resp = await fetch('/api/download', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, title, artist, album, year }),
+      body: JSON.stringify({ url, title, artist, album, year, genre }),
     });
 
     if (!resp.ok) {
