@@ -79,7 +79,7 @@ async def download(
     background_tasks.add_task(shutil.rmtree, tmp_dir, True)
 
     ascii_name = filename.encode("ascii", errors="replace").decode("ascii").replace("?", "_")
-    encoded_name = urllib.parse.quote(filename, safe=" -()")
+    encoded_name = urllib.parse.quote(filename, safe="-()")
     disposition = f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{encoded_name}'
 
     return FileResponse(
